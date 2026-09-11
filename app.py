@@ -18,11 +18,19 @@ st.markdown("""
     div[data-testid="stHorizontalBlock"] {
         width: 100%;
     }
+    /* Highlight input boxes yellow */
+    div[data-baseweb="input"] {
+        background-color: #fff3cd !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 
 st.title("Variance/Efficiency Report")
 st.markdown("💡 **To download total food AvT:** Reports / Inventory / Actual/Theoretical cost. Change dates then click 'Retrieve'. Then click 'Total Food'. Print as EXCEL file. Upload to variance report.")
+
+# Dates input field highlighted yellow
+audit_dates = st.text_input("Dates (e.g., 8/11-8/15)", placeholder="e.g., 8/11-8/15")
+
 st.write("Drag and drop your Excel variance report below.")
 
 # Updated GL Dictionary (Dairy and Bakery GLs mapped correctly)
@@ -206,7 +214,15 @@ if uploaded_file is not None:
             # --- FOCUS REPORT PDF GENERATION ---
             def generate_focus_pdf():
                 buffer = io.BytesIO()
-                doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=18, leftMargin=18, topMargin=18, bottomMargin=18)
+                doc = SimpleDocTemplate(
+                    buffer, 
+                    pagesize=letter, 
+                    rightMargin=18, 
+                    leftMargin=18, 
+                    topMargin=18, 
+                    bottomMargin=18,
+                    title="Variance/Efficiency Report"
+                )
                 elements = []
                 styles = getSampleStyleSheet()
                 
@@ -215,7 +231,17 @@ if uploaded_file is not None:
                     parent=styles['Heading1'],
                     fontSize=11,
                     textColor=colors.HexColor('#111111'),
-                    spaceAfter=3
+                    spaceAfter=1,
+                    alignment=1
+                )
+                
+                date_style = ParagraphStyle(
+                    'DateStyle',
+                    parent=styles['Normal'],
+                    fontSize=8,
+                    textColor=colors.HexColor('#555555'),
+                    spaceAfter=4,
+                    alignment=1
                 )
                 
                 heading_style = ParagraphStyle(
@@ -238,6 +264,8 @@ if uploaded_file is not None:
                 )
                 
                 elements.append(Paragraph(f"Variance/Efficiency Report: {store_name}", title_style))
+                if audit_dates:
+                    elements.append(Paragraph(f"<b>Dates:</b> {audit_dates}", date_style))
                 elements.append(Paragraph("Total Food", heading_style))
                 
                 pdf_summary_data = [["GL", "Category", "Actual", "Theoretical", "Variance ($)", "Var %", "Efficiency"]]
@@ -339,4 +367,5 @@ if uploaded_file is not None:
             st.error(f"Layout mismatch: The script expected 10 data columns but found {df.shape[1]}.")
 
     except Exception as e:
+            st.error(f"An error occurred while processing the file: {e}")
             st.error(f"An error occurred while processing the file: {e}")
