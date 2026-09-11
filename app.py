@@ -22,6 +22,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("Variance/Efficiency Report")
+st.markdown("Download total food AvT: Reports / Inventory / Actual/Theoretical cost. Change dates then click 'Retrieve'. Then click 'Total Food'. Print as EXCEL file. Upload to variance report.")
 st.write("Drag and drop your Excel variance report below.")
 
 # Updated GL Dictionary (Dairy and Bakery GLs mapped correctly)
