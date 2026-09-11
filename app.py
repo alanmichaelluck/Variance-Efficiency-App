@@ -26,7 +26,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("Variance & Efficiency Report")
-st.markdown("💡 **To download total food AvT:** Reports / Inventory / Actual/Theoretical cost. Change dates then click 'Retrieve'. Then click 'Total Food'. Print as EXCEL file. Upload to variance report.")
+st.markdown("💡 **To download total food AvT:** Reports / Inventory / Actual/Theoretical cost. Change dates then click 'Retrieve'. Then click 'Total Food'. Click "print" Icon and export as EXCEL file. Upload to variance report.")
 
 # Dates input field with updated placeholder
 audit_dates = st.text_input("Dates (from AvT report)", placeholder="e.g., 8/11-8/15")
