@@ -28,8 +28,8 @@ st.markdown("""
 st.title("Variance/Efficiency Report")
 st.markdown("💡 **To download total food AvT:** Reports / Inventory / Actual/Theoretical cost. Change dates then click 'Retrieve'. Then click 'Total Food'. Print as EXCEL file. Upload to variance report.")
 
-# Dates input field highlighted yellow
-audit_dates = st.text_input("Dates (e.g., 8/11-8/15)", placeholder="e.g., 8/11-8/15")
+# Dates input field with updated placeholder
+audit_dates = st.text_input("Dates (from AvT report)", placeholder="e.g., 8/11-8/15")
 
 st.write("Drag and drop your Excel variance report below.")
 
@@ -367,5 +367,4 @@ if uploaded_file is not None:
             st.error(f"Layout mismatch: The script expected 10 data columns but found {df.shape[1]}.")
 
     except Exception as e:
-            st.error(f"An error occurred while processing the file: {e}")
             st.error(f"An error occurred while processing the file: {e}")
