@@ -25,7 +25,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.title("Variance/Efficiency Report")
+st.title("Variance & Efficiency Report")
 st.markdown("💡 **To download total food AvT:** Reports / Inventory / Actual/Theoretical cost. Change dates then click 'Retrieve'. Then click 'Total Food'. Print as EXCEL file. Upload to variance report.")
 
 # Dates input field with updated placeholder
