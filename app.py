@@ -37,7 +37,7 @@ with col2:
 
 st.write("Drag and drop your Excel variance report below.")
 
-# Updated GL Dictionary (Dairy and Bakery GLs mapped correctly)
+# Updated GL Dictionary
 gl_mapping = {
     'P50100': 'Dry Goods',
     'P50200': 'Produce / Veg',
@@ -124,5 +124,8 @@ if uploaded_file is not None:
             
             summary_with_total = pd.concat([summary, total_row], ignore_index=True)
             summary_with_total = summary_with_total.sort_values(by='SortOrder')
-            
             summary_with_total = summary_with_total[['GL Code', 'Category', 'Actual Value', 'Theoretical Value', 'Variance ($)', 'Variance %', 'Efficiency', 'SortOrder']]
+            
+            # --- PREPARE ITEM DETAILS ---
+            df_items = df[['GL Code', 'Category', 'Product Number', 'Product Name', 'Inv. Unit', 'Actual Value', 'Theoretical Value', 'Variance %', 'Approx. Units']].copy()
+            df_items['Efficiency'] = df_items['Theoretical Value'] /
