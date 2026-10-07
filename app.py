@@ -93,7 +93,8 @@ if uploaded_file is not None:
             }).reset_index()
             
             summary['Efficiency'] = summary['Theoretical Value'] / summary['Actual Value'].replace(0, 1)
-            summary['Variance ($)'] = summary['Actual Value'] - summary['Theoretical Value']
+            # Make summary variance dollar amounts negative
+            summary['Variance ($)'] = summary['Theoretical Value'] - summary['Actual Value']
             
             category_order = {
                 'Produce / Veg': 1,
@@ -115,7 +116,7 @@ if uploaded_file is not None:
                 'Theoretical Value': [summary['Theoretical Value'].sum()],
                 'Variance %': [summary['Variance %'].sum()],
                 'Efficiency': [summary['Theoretical Value'].sum() / summary['Actual Value'].sum() if summary['Actual Value'].sum() > 0 else 0],
-                'Variance ($)s': [summary['Variance ($)'].sum()],
+                'Variance ($)s': [summary['Theoretical Value'].sum() - summary['Actual Value'].sum()],
                 'SortOrder': [100]
             })
             
@@ -128,7 +129,6 @@ if uploaded_file is not None:
             # --- PREPARE ITEM DETAILS WITH NEW COLUMNS & NEGATIVE VARIANCE DOLLARS ---
             df_items = df[['GL Code', 'Category', 'Product Number', 'Product Name', 'Inv. Unit', 'Actual Value', 'Theoretical Value', 'Variance %', 'Approx. Units']].copy()
             df_items['Efficiency'] = df_items['Theoretical Value'] / df_items['Actual Value'].replace(0, 1)
-            # Make variance dollar amounts negative for unfavorable usage
             df_items['Variance ($)'] = df_items['Theoretical Value'] - df_items['Actual Value']
             
             sorted_categories_for_loop = summary.sort_values(by='SortOrder')
@@ -152,8 +152,7 @@ if uploaded_file is not None:
                 return [''] * len(row)
 
             st.dataframe(summary_with_total.drop(columns=['SortOrder']).style.apply(bold_total_row, axis=1).format({
-                'Actual Value': '${:,.2f}', 
-                'Theoretical Value': '${:,.2f}',
+                'Actual Value': '${:,.2f}',                  'Theoretical Value': '${:,.2f}',
                 'Variance ($)': '${:,.2f}',
                 'Variance %': '{:.2f}%',
                 'Efficiency': '{:.2%}'
@@ -189,8 +188,7 @@ if uploaded_file is not None:
                         return highlight_top_n
 
                     st.dataframe(cat_df.style.apply(make_highlight_func(limit), axis=None).format({
-                        'Actual Value': '${:,.2f}', 
-                        'Theoretical Value': '${:,.2f}',
+                        'Actual Value': '${:,.2f}',                          'Theoretical Value': '${:,.2f}',
                         'Variance ($)': '${:,.2f}',
                         'Variance %': '{:.2f}%',
                         'Approx. Units': '{:,.2f}',
@@ -273,107 +271,4 @@ if uploaded_file is not None:
                 elements.append(Paragraph(f"Variance/Efficiency Report: {store_name}", title_style))
                 if audit_dates:
                     elements.append(Paragraph(f"<b>Dates:</b> {audit_dates}", date_style))
-                elements.append(Paragraph("Total Food", heading_style))
-                
-                pdf_summary_data = [["GL", "Category", "Actual", "Theoretical", "Variance ($)", "Var %", "Efficiency"]]
-                for idx, row in summary_with_total.iterrows():
-                    pdf_summary_data.append([
-                        str(row['GL Code']),
-                        str(row['Category']),
-                        f"${row['Actual Value']:,.2f}",
-                        f"${row['Theoretical Value']:,.2f}",
-                        f"${row['Variance ($)']:,.2f}",
-                        f"{row['Variance %']:.2f}%",
-                        f"{row['Efficiency']:.2%}"
-                    ])
-                
-                t_summary = Table(pdf_summary_data, colWidths=[46, 100, 75, 75, 80, 55, 55], hAlign='LEFT')
-                t_summary.setStyle(TableStyle([
-                    ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#f0f2f6')),
-                    ('TEXTCOLOR', (0,0), (-1,0), colors.HexColor('#111111')),
-                    ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-                    ('FONTSIZE', (0,0), (-1,0), 7),
-                    ('BOTTOMPADDING', (0,0), (-1,0), 1.5),
-                    ('TOPPADDING', (0,0), (-1,0), 1.5),
-                    ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#dddddd')),
-                    ('FONTNAME', (0,1), (-1,-1), 'Helvetica'),
-                    ('FONTSIZE', (0,1), (-1,-1), 6),
-                    ('BOTTOMPADDING', (0,1), (-1,-1), 1),
-                    ('TOPPADDING', (0,1), (-1,-1), 1),
-                    ('FONTNAME', (0,-1), (-1,-1), 'Helvetica-Bold'),
-                    ('BACKGROUND', (0,-1), (-1,-1), colors.HexColor('#f9f9f9')),
-                ]))
-                elements.append(t_summary)
-                elements.append(Spacer(1, 2))
-                
-                elements.append(Paragraph("Top Highlighted Variance Drivers & Action Plans", heading_style))
-                
-                for index, row in sorted_categories_for_loop.iterrows():
-                    cat_name = row['Category']
-                    gl_code = row['GL Code']
-                    limit = highlight_limits.get(cat_name, 1)
-                    
-                    cat_df = df_items[df_items['GL Code'] == gl_code].copy()
-                    cat_df = cat_df.sort_values(by='Variance %', ascending=True).reset_index(drop=True)
-                    focus_items = cat_df.head(limit)
-                    
-                    if len(focus_items) > 0:
-                        elements.append(Paragraph(f"<b>{cat_name} ({gl_code})</b>", ParagraphStyle('SubHeading', parent=styles['Normal'], fontSize=7, fontName='Helvetica-Bold', spaceBefore=2, spaceAfter=1)))
-                        
-                        cat_table_data = [["Prod #", "Product Name", "Inv. Unit", "Actual", "Theoretical", "Variance ($)", "Var %", "Approx Units", "Efficiency"]]
-                        for _, item in focus_items.iterrows():
-                            cat_table_data.append([
-                                str(item['Product Number']),
-                                str(item['Product Name']),
-                                str(item['Inv. Unit']),
-                                f"${item['Actual Value']:,.2f}",
-                                f"${item['Theoretical Value']:,.2f}",
-                                f"${item['Variance ($)']:,.2f}",
-                                f"{item['Variance %']:.2f}%",
-                                f"{item['Approx. Units']:,.2f}",
-                                f"{item['Efficiency']:.2%}"
-                            ])
-                        
-                        t_cat = Table(cat_table_data, colWidths=[55, 160, 45, 55, 55, 60, 45, 50, 51], hAlign='LEFT')
-                        t_cat.setStyle(TableStyle([
-                            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#fff3cd')),
-                            ('TEXTCOLOR', (0,0), (-1,0), colors.HexColor('#111111')),
-                            ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-                            ('FONTSIZE', (0,0), (-1,0), 5.5),
-                            ('BOTTOMPADDING', (0,0), (-1,0), 1),
-                            ('TOPPADDING', (0,0), (-1,0), 1),
-                            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#e2e2e2')),
-                            ('FONTNAME', (0,1), (-1,-1), 'Helvetica'),
-                            ('FONTSIZE', (0,1), (-1,-1), 5),
-                            ('BOTTOMPADDING', (0,1), (-1,-1), 0.5),
-                            ('TOPPADDING', (0,1), (-1,-1), 0.5),
-                        ]))
-                        elements.append(t_cat)
-                        
-                        for _, item in focus_items.iterrows():
-                            p_num = item['Product Number']
-                            p_name = item['Product Name']
-                            user_note = st.session_state.get(f"note_{p_num}", "").strip()
-                            if user_note:
-                                elements.append(Paragraph(f"<b>{p_name}:</b> {user_note}", note_style))
-                        
-                        elements.append(Spacer(1, 2))
-                
-                doc.build(elements)
-                buffer.seek(0)
-                return buffer.getvalue()
-
-            # Display Focus Report PDF Download Button at the very bottom
-            st.write("---")
-            st.download_button(
-                label="📥 Download focus report",
-                data=generate_focus_pdf(),
-                file_name=f"Variance_Focus_Report_{store_name.replace(' ', '_')}.pdf",
-                mime="application/pdf"
-            )
-            
-        else:
-            st.error(f"Layout mismatch: The script expected 10 data columns but found {df.shape[1]}.")
-
-    except Exception as e:
-            st.error(f"An error occurred while processing the file: {e}")
+                elements.append(Paragraph("
