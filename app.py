@@ -93,7 +93,6 @@ if uploaded_file is not None:
             }).reset_index()
             
             summary['Efficiency'] = summary['Theoretical Value'] / summary['Actual Value'].replace(0, 1)
-            # Make summary variance dollar amounts negative
             summary['Variance ($)'] = summary['Theoretical Value'] - summary['Actual Value']
             
             category_order = {
@@ -109,166 +108,21 @@ if uploaded_file is not None:
             summary['SortOrder'] = summary['Category'].map(category_order).fillna(99)
             summary = summary.sort_values(by='SortOrder')
             
+            tot_actual = summary['Actual Value'].sum()
+            tot_theo = summary['Theoretical Value'].sum()
+            
             total_row = pd.DataFrame({
                 'GL Code': ['TOTAL'],
                 'Category': ['Total'],
-                'Actual Value': [summary['Actual Value'].sum()],
-                'Theoretical Value': [summary['Theoretical Value'].sum()],
+                'Actual Value': [tot_actual],
+                'Theoretical Value': [tot_theo],
                 'Variance %': [summary['Variance %'].sum()],
-                'Efficiency': [summary['Theoretical Value'].sum() / summary['Actual Value'].sum() if summary['Actual Value'].sum() > 0 else 0],
-                'Variance ($)s': [summary['Theoretical Value'].sum() - summary['Actual Value'].sum()],
+                'Efficiency': [tot_theo / tot_actual if tot_actual > 0 else 0],
+                'Variance ($)': [tot_theo - tot_actual],
                 'SortOrder': [100]
             })
             
-            total_row = total_row.rename(columns={'Variance ($)s': 'Variance ($)'})
             summary_with_total = pd.concat([summary, total_row], ignore_index=True)
             summary_with_total = summary_with_total.sort_values(by='SortOrder')
             
             summary_with_total = summary_with_total[['GL Code', 'Category', 'Actual Value', 'Theoretical Value', 'Variance ($)', 'Variance %', 'Efficiency', 'SortOrder']]
-            
-            # --- PREPARE ITEM DETAILS WITH NEW COLUMNS & NEGATIVE VARIANCE DOLLARS ---
-            df_items = df[['GL Code', 'Category', 'Product Number', 'Product Name', 'Inv. Unit', 'Actual Value', 'Theoretical Value', 'Variance %', 'Approx. Units']].copy()
-            df_items['Efficiency'] = df_items['Theoretical Value'] / df_items['Actual Value'].replace(0, 1)
-            df_items['Variance ($)'] = df_items['Theoretical Value'] - df_items['Actual Value']
-            
-            sorted_categories_for_loop = summary.sort_values(by='SortOrder')
-            
-            highlight_limits = {
-                'Produce / Veg': 3,
-                'Dry Goods': 3,
-                'Dairy': 2,
-                'Fish': 1,
-                'Other Seafood / Shrimp': 1,
-                'Beef': 1,
-                'Poultry': 1,
-                'Bakery': 1
-            }
-
-            st.write("### Total Food")
-            
-            def bold_total_row(row):
-                if row['GL Code'] == 'TOTAL':
-                    return ['font-weight: bold; background-color: #f8f9fa'] * len(row)
-                return [''] * len(row)
-
-            st.dataframe(summary_with_total.drop(columns=['SortOrder']).style.apply(bold_total_row, axis=1).format({
-                'Actual Value': '${:,.2f}',                  'Theoretical Value': '${:,.2f}',
-                'Variance ($)': '${:,.2f}',
-                'Variance %': '{:.2f}%',
-                'Efficiency': '{:.2%}'
-            }), use_container_width=True, hide_index=True)
-            
-            # --- SECTION 2: DETAILED ITEM BREAKDOWNS & ACTION PLAN FORM ---
-            st.write("---")
-            st.write("### Category Breakdowns")
-            st.write("*💡 Tip: Click any column header to re-sort items. Log action plans in the form below and click 'Save Action Plans' before downloading.*")
-            
-            with st.form("action_plans_form"):
-                for index, row in sorted_categories_for_loop.iterrows():
-                    cat_name = row['Category']
-                    gl_code = row['GL Code']
-                    
-                    st.write(f"#### {cat_name} ({gl_code})")
-                    
-                    cat_df = df_items[df_items['GL Code'] == gl_code].copy()
-                    cat_df = cat_df[['Product Number', 'Product Name', 'Inv. Unit', 'Actual Value', 'Theoretical Value', 'Variance ($)', 'Variance %', 'Approx. Units', 'Efficiency']]
-                    
-                    cat_df = cat_df.sort_values(by='Variance %', ascending=True).reset_index(drop=True)
-                    
-                    limit = highlight_limits.get(cat_name, 1)
-                    
-                    def make_highlight_func(n):
-                        def highlight_top_n(df_subset):
-                            if len(df_subset) == 0:
-                                return pd.DataFrame('', index=df_subset.index, columns=df_subset.columns)
-                            styled_res = pd.DataFrame('', index=df_subset.index, columns=df_subset.columns)
-                            for i in range(min(n, len(df_subset))):
-                                styled_res.iloc[i, :] = 'background-color: #fff3cd'
-                            return styled_res
-                        return highlight_top_n
-
-                    st.dataframe(cat_df.style.apply(make_highlight_func(limit), axis=None).format({
-                        'Actual Value': '${:,.2f}',                          'Theoretical Value': '${:,.2f}',
-                        'Variance ($)': '${:,.2f}',
-                        'Variance %': '{:.2f}%',
-                        'Approx. Units': '{:,.2f}',
-                        'Efficiency': '{:.2%}'
-                    }), use_container_width=True, hide_index=True)
-                    
-                    highlighted_subset = cat_df.head(limit)
-                    for _, item in highlighted_subset.iterrows():
-                        prod_num = item['Product Number']
-                        prod_name = item['Product Name']
-                        var_pct = item['Variance %']
-                        
-                        input_label = f"Explanation / Action Plan for: {prod_name} ({prod_num}) [{var_pct:.2f}% Var]"
-                        note_key = f"note_{prod_num}"
-                        
-                        st.text_input(
-                            input_label,
-                            placeholder="Type explanation and action plan here...",
-                            key=note_key
-                        )
-                    st.write("")
-                
-                submitted = st.form_submit_button("💾 Save Action Plans")
-
-            if submitted:
-                st.success("Action plans saved successfully! You can now download your focus report.")
-
-            # --- FOCUS REPORT PDF GENERATION ---
-            def generate_focus_pdf():
-                buffer = io.BytesIO()
-                doc = SimpleDocTemplate(
-                    buffer, 
-                    pagesize=letter, 
-                    rightMargin=18, 
-                    leftMargin=18, 
-                    topMargin=18, 
-                    bottomMargin=18,
-                    title="Variance/Efficiency Report"
-                )
-                elements = []
-                styles = getSampleStyleSheet()
-                
-                title_style = ParagraphStyle(
-                    'TitleStyle',
-                    parent=styles['Heading1'],
-                    fontSize=11,
-                    textColor=colors.HexColor('#111111'),
-                    spaceAfter=1,
-                    alignment=1
-                )
-                
-                date_style = ParagraphStyle(
-                    'DateStyle',
-                    parent=styles['Normal'],
-                    fontSize=8,
-                    textColor=colors.HexColor('#555555'),
-                    spaceAfter=4,
-                    alignment=1
-                )
-                
-                heading_style = ParagraphStyle(
-                    'HeadingStyle',
-                    parent=styles['Heading2'],
-                    fontSize=8.5,
-                    textColor=colors.HexColor('#222222'),
-                    spaceBefore=4,
-                    spaceAfter=2
-                )
-                
-                note_style = ParagraphStyle(
-                    'NoteStyle',
-                    parent=styles['Normal'],
-                    fontSize=6,
-                    textColor=colors.HexColor('#d9534f'),
-                    spaceBefore=1,
-                    spaceAfter=3,
-                    leftIndent=4
-                )
-                
-                elements.append(Paragraph(f"Variance/Efficiency Report: {store_name}", title_style))
-                if audit_dates:
-                    elements.append(Paragraph(f"<b>Dates:</b> {audit_dates}", date_style))
-                elements.append(Paragraph("
