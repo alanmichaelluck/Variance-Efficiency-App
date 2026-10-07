@@ -25,11 +25,15 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.title("Variance & Efficiency Report")
+st.title("Variance/Efficiency Report")
 st.markdown("💡 **To download total food AvT:** Reports / Inventory / Actual/Theoretical cost. Change dates then click 'Retrieve'. Then click 'Total Food'. Click 'print' Icon and export as EXCEL file. Upload to variance report.")
 
-# Dates input field with updated placeholder
-audit_dates = st.text_input("Dates (from AvT report)", placeholder="e.g., 8/11-8/15")
+# Input fields for Dates and Store Name
+col1, col2 = st.columns(2)
+with col1:
+    audit_dates = st.text_input("Dates (from AvT report)", placeholder="e.g., 8/11-8/15")
+with col2:
+    store_name_input = st.text_input("Store Name", placeholder="e.g., Flower Child - Austin (2nd)")
 
 st.write("Drag and drop your Excel variance report below.")
 
@@ -52,11 +56,10 @@ if uploaded_file is not None:
         xls = pd.ExcelFile(uploaded_file)
         df_raw = pd.read_excel(xls, sheet_name=xls.sheet_names[0], header=None)
         
-        raw_title_text = str(df_raw.iloc[0, 1])
-        store_title_parts = re.split(r'\s+\d+\s+[A-Za-z]', raw_title_text)
-        store_name = store_title_parts[0].strip() if len(store_title_parts) > 0 else "Variance Report"
+        # Determine store name from manual input or fallback
+        store_name = store_name_input.strip() if store_name_input and store_name_input.strip() else "Variance Report"
         
-        # Display just the store location name
+        # Display store location header
         st.markdown(f"# {store_name}")
         st.write("---")
         
