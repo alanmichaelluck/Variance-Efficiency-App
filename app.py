@@ -83,6 +83,7 @@ if uploaded_file is not None:
             df['Actual Value'] = pd.to_numeric(df['Actual Value'].astype(str).str.replace(',', ''), errors='coerce').fillna(0)
             df['Theoretical Value'] = pd.to_numeric(df['Theoretical Value'].astype(str).str.replace(',', ''), errors='coerce').fillna(0)
             df['Variance %'] = pd.to_numeric(df['Variance %'].astype(str).str.replace(',', '').str.replace('%', ''), errors='coerce').fillna(0)
+            df['Approx. Units'] = pd.to_numeric(df['Approx. Units'].astype(str).str.replace(',', ''), errors='coerce').fillna(0)
             
             # --- SECTION 1: THE SUMMARY TABLE ---
             summary = df.groupby(['GL Code', 'Category']).agg({
@@ -124,9 +125,11 @@ if uploaded_file is not None:
             
             summary_with_total = summary_with_total[['GL Code', 'Category', 'Actual Value', 'Theoretical Value', 'Variance ($)', 'Variance %', 'Efficiency', 'SortOrder']]
             
-            df_items = df[['GL Code', 'Category', 'Product Number', 'Product Name', 'Actual Value', 'Theoretical Value', 'Variance %']].copy()
+            # --- PREPARE ITEM DETAILS WITH NEW COLUMNS & NEGATIVE VARIANCE DOLLARS ---
+            df_items = df[['GL Code', 'Category', 'Product Number', 'Product Name', 'Inv. Unit', 'Actual Value', 'Theoretical Value', 'Variance %', 'Approx. Units']].copy()
             df_items['Efficiency'] = df_items['Theoretical Value'] / df_items['Actual Value'].replace(0, 1)
-            df_items['Variance ($)'] = df_items['Actual Value'] - df_items['Theoretical Value']
+            # Make variance dollar amounts negative for unfavorable usage
+            df_items['Variance ($)'] = df_items['Theoretical Value'] - df_items['Actual Value']
             
             sorted_categories_for_loop = summary.sort_values(by='SortOrder')
             
@@ -169,7 +172,7 @@ if uploaded_file is not None:
                     st.write(f"#### {cat_name} ({gl_code})")
                     
                     cat_df = df_items[df_items['GL Code'] == gl_code].copy()
-                    cat_df = cat_df[['Product Number', 'Product Name', 'Actual Value', 'Theoretical Value', 'Variance ($)', 'Variance %', 'Efficiency']]
+                    cat_df = cat_df[['Product Number', 'Product Name', 'Inv. Unit', 'Actual Value', 'Theoretical Value', 'Variance ($)', 'Variance %', 'Approx. Units', 'Efficiency']]
                     
                     cat_df = cat_df.sort_values(by='Variance %', ascending=True).reset_index(drop=True)
                     
@@ -190,6 +193,7 @@ if uploaded_file is not None:
                         'Theoretical Value': '${:,.2f}',
                         'Variance ($)': '${:,.2f}',
                         'Variance %': '{:.2f}%',
+                        'Approx. Units': '{:,.2f}',
                         'Efficiency': '{:.2%}'
                     }), use_container_width=True, hide_index=True)
                     
@@ -316,29 +320,31 @@ if uploaded_file is not None:
                     if len(focus_items) > 0:
                         elements.append(Paragraph(f"<b>{cat_name} ({gl_code})</b>", ParagraphStyle('SubHeading', parent=styles['Normal'], fontSize=7, fontName='Helvetica-Bold', spaceBefore=2, spaceAfter=1)))
                         
-                        cat_table_data = [["Prod #", "Product Name", "Actual", "Theoretical", "Variance ($)", "Var %", "Efficiency"]]
+                        cat_table_data = [["Prod #", "Product Name", "Inv. Unit", "Actual", "Theoretical", "Variance ($)", "Var %", "Approx Units", "Efficiency"]]
                         for _, item in focus_items.iterrows():
                             cat_table_data.append([
                                 str(item['Product Number']),
                                 str(item['Product Name']),
+                                str(item['Inv. Unit']),
                                 f"${item['Actual Value']:,.2f}",
                                 f"${item['Theoretical Value']:,.2f}",
                                 f"${item['Variance ($)']:,.2f}",
                                 f"{item['Variance %']:.2f}%",
+                                f"{item['Approx. Units']:,.2f}",
                                 f"{item['Efficiency']:.2%}"
                             ])
                         
-                        t_cat = Table(cat_table_data, colWidths=[70, 206, 65, 65, 65, 55, 50], hAlign='LEFT')
+                        t_cat = Table(cat_table_data, colWidths=[55, 160, 45, 55, 55, 60, 45, 50, 51], hAlign='LEFT')
                         t_cat.setStyle(TableStyle([
                             ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#fff3cd')),
                             ('TEXTCOLOR', (0,0), (-1,0), colors.HexColor('#111111')),
                             ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-                            ('FONTSIZE', (0,0), (-1,0), 6),
+                            ('FONTSIZE', (0,0), (-1,0), 5.5),
                             ('BOTTOMPADDING', (0,0), (-1,0), 1),
                             ('TOPPADDING', (0,0), (-1,0), 1),
                             ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#e2e2e2')),
                             ('FONTNAME', (0,1), (-1,-1), 'Helvetica'),
-                            ('FONTSIZE', (0,1), (-1,-1), 5.5),
+                            ('FONTSIZE', (0,1), (-1,-1), 5),
                             ('BOTTOMPADDING', (0,1), (-1,-1), 0.5),
                             ('TOPPADDING', (0,1), (-1,-1), 0.5),
                         ]))
