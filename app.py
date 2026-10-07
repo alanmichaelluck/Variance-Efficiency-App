@@ -28,12 +28,12 @@ st.markdown("""
 st.title("Variance/Efficiency Report")
 st.markdown("💡 **To download total food AvT:** Reports / Inventory / Actual/Theoretical cost. Change dates then click 'Retrieve'. Then click 'Total Food'. Click 'print' Icon and export as EXCEL file. Upload to variance report.")
 
-# Input fields for Dates and Store Name
+# Input fields for Store Name and Dates (Swapped order)
 col1, col2 = st.columns(2)
 with col1:
-    audit_dates = st.text_input("Dates (from AvT report)", placeholder="e.g., 8/11-8/15")
-with col2:
     store_name_input = st.text_input("Store Name", placeholder="e.g., Flower Child - Austin (2nd)")
+with col2:
+    audit_dates = st.text_input("Dates (from AvT report)", placeholder="e.g., 8/11-8/15")
 
 st.write("Drag and drop your Excel variance report below.")
 
