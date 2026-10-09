@@ -28,7 +28,7 @@ st.markdown("""
 st.title("Variance/Efficiency Report")
 st.markdown("💡 **To download total food AvT:** Reports / Inventory / Actual/Theoretical cost. Change dates then click 'Retrieve'. Then click 'Total Food'. Click 'print' Icon and export as EXCEL file. Upload to variance report.")
 
-# Input fields for Store Name and Dates (Swapped order)
+# Input fields for Store Name and Dates
 col1, col2 = st.columns(2)
 with col1:
     store_name_input = st.text_input("Store Name", placeholder="e.g., Flower Child - Austin (2nd)")
@@ -59,14 +59,17 @@ if uploaded_file is not None:
         # Determine store name from manual input or fallback
         store_name = store_name_input.strip() if store_name_input and store_name_input.strip() else "Variance Report"
         
-        # Display store location header
         st.markdown(f"# {store_name}")
         st.write("---")
         
         prod_row_idx = df_raw[df_raw.apply(lambda r: r.astype(str).str.contains('Product Number', case=False).any(), axis=1)].index[0]
         prod_col_idx = df_raw.iloc[prod_row_idx][df_raw.iloc[prod_row_idx] == 'Product Number'].index[0]
+        name_col_idx = df_raw.iloc[prod_row_idx][df_raw.iloc[prod_row_idx] == 'Product Name'].index[0]
         
-        df = df_raw[df_raw[prod_col_idx].astype(str).str.match(r'^P\d+-[A-Za-z0-9]+', na=False)].copy()
+        # Broadened filter to catch all 'P' prefixes AND any 'Unspecified Items'
+        mask = df_raw[prod_col_idx].astype(str).str.match(r'^P\d+', na=False) | df_raw[name_col_idx].astype(str).str.contains('Unspecified', case=False, na=False)
+        df = df_raw[mask].copy()
+        
         df = df.dropna(axis=1, how='all')
         
         if df.shape[1] == 10:
@@ -74,9 +77,10 @@ if uploaded_file is not None:
                           'Actual Value', 'Actual %', 'Theoretical Value', 'Theoretical %', 
                           'Variance Value', 'Variance %', 'Approx. Units']
             
-            # Exclude U-12 rows
-            df = df[~df['Product Name'].astype(str).str.contains('U-12', case=False, na=False)].copy()
+            # The U-12 filter was removed here to prevent dropping valid items
             
+            # Map Unspecified items so they don't break the GL Code grouping
+            df['Product Number'] = df['Product Number'].fillna('UNSPECIFIED')
             df['GL Code'] = df['Product Number'].apply(lambda x: str(x).split('-')[0].strip())
             df['Category'] = df['GL Code'].map(gl_mapping).fillna('Uncategorized')
             
@@ -103,7 +107,8 @@ if uploaded_file is not None:
                 'Other Seafood / Shrimp': 5,
                 'Fish': 6,
                 'Dairy': 7,
-                'Bakery': 8
+                'Bakery': 8,
+                'Uncategorized': 9
             }
             summary['SortOrder'] = summary['Category'].map(category_order).fillna(99)
             summary = summary.sort_values(by='SortOrder')
@@ -362,7 +367,6 @@ if uploaded_file is not None:
                 buffer.seek(0)
                 return buffer.getvalue()
 
-            # Display Focus Report PDF Download Button at the very bottom
             st.write("---")
             st.download_button(
                 label="📥 Download focus report",
